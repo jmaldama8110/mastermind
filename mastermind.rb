@@ -8,6 +8,10 @@ class Coder
     @code = @colors.sample(5)
   end
 
+  def code
+    "#{@code[0]}º#{@code[1]}º#{@code[2]}º#{@code[3]}º#{@code[4]}"
+  end
+
   private
 
   def get_not_found_positions(harray)
@@ -51,36 +55,112 @@ class Coder
     get_found_positions(harray).each { |found| clues[found] = '?' }
     clues
   end
+
+  def complete(gcode)
+    @code == gcode
+  end
 end
 # Guesser code and methods
-# 
+
 # frozen_string_literal: true
-class Guesser < Coder
-  def guess_code
-    @colors.sample(5)
+class Guesser
+  attr_reader :guess_code, :colors
+
+  def initialize
+    @colors = %w[A B C D E F G H I J K L M]
+    @guess_code = @colors.sample(5)
+  end
+
+  def not_found_characters(clues)
+    data = []
+    clues.each_with_index do |clue, index|
+      data.push(@guess_code[index]) if clue == '*'
+    end
+    data
+  end
+
+  def match_characters(clues)
+    data = []
+    clues.each_with_index do |clue, index|
+      data.push(@guess_code[index]) if clue != '*' && clue != '?'
+    end
+    data
+  end
+
+  def match_characters_positions(clues)
+    data = []
+    clues.each_with_index do |clue, index|
+      data.push(index) if clue != '*' && clue != '?'
+    end
+    data
+  end
+
+  def found_positions(clues)
+    data = []
+    clues.each_with_index do |clue, index|
+      data.push(index) if clue == '?'
+    end
+    data
+  end
+
+  def found_characters(clues)
+    data = []
+    clues.each_with_index do |clue, index|
+      data.push(@guess_code[index]) if clue == '?'
+    end
+    data
+  end
+
+  # some work for the not found colors (*)
+  def try_guess(clues)
+    @colors -= not_found_characters(clues)
+    @colors -= match_characters(clues)
+    @colors -= found_characters(clues)
+
+    clues.each_with_index do |clue, index|
+      next unless clue == '*'
+
+      new_char = @colors.sample(1)
+      @guess_code[index] = new_char[0]
+      @colors -= new_char
+    end
+  end
+
+  # some work for the found colors (?)
+  def try_found(clues)
+    base = [0, 1, 2, 3, 4]
+    skip_match = match_characters_positions(clues)
+    clues.each_with_index do |clue, index|
+      next unless clue == '?'
+
+      possible_positions = base - skip_match - [index]
+      rand_position = possible_positions.sample(1)
+      curr_value = @guess_code[index]
+      @guess_code[index] = @guess_code[rand_position[0]]
+      @guess_code[rand_position[0]] = curr_value
+    end
   end
 end
 
 coder = Coder.new
 guesser = Guesser.new
+puts "guess_code: #{guesser.guess_code}"
 
-guesser.code
+tries = 1
+loop do
+  puts "\nTry #{tries}"
+  clues = coder.get_clues(guesser.guess_code)
+  puts "guess_code: #{guesser.guess_code}"
+  puts "Clues:#{clues}"
 
+  guesser.try_guess(clues)
+  guesser.try_found(clues)
 
-# i = 1
-# loop do
-#   guess_code = []
-#   while guess_code.length != 5
-#     puts "Turn #{i} - Entre color sequence:"
-#     guess_code = gets.chomp.upcase.split('')
-#   end
-#   clues = coder.get_clues(guess_code)
-#   if clues != guess_code
-#     puts "You tried:  #{guess_code} -> clue: #{clues}"
-#     i += 1
-#   else
-#     puts "Congratulations! you guessed the code #{guess_code}"
-#     i = 12
-#   end
-#   break if i == 12
-# end
+  puts 'Continue? (Y/N)..'
+  finished = gets.chomp
+  complete = coder.complete(guesser.guess_code)
+
+  puts "Congratulation! you guessed at #{tries} attemps" if complete
+  tries += 1
+  break if finished.upcase == 'N' || complete
+end
