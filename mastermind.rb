@@ -3,9 +3,9 @@ require('colorize')
 
 # frozen_string_literal: true
 class Coder
-  def initialize
+  def initialize(manual_entry = [])
     @colors = %w[A B C D E F G H I J K L M]
-    @code = @colors.sample(5)
+    @code = manual_entry.empty? ? @colors.sample(5) : manual_entry
   end
 
   def code
@@ -66,9 +66,10 @@ end
 class Guesser
   attr_reader :guess_code, :colors
 
-  def initialize
+  def initialize(manual_entry = [])
     @colors = %w[A B C D E F G H I J K L M]
-    @guess_code = @colors.sample(5)
+
+    @guess_code = manual_entry.empty? ? @colors.sample(5) : manual_entry
   end
 
   def not_found_characters(clues)
@@ -142,25 +143,56 @@ class Guesser
   end
 end
 
-coder = Coder.new
-guesser = Guesser.new
-puts "guess_code: #{guesser.guess_code}"
+puts "1. Guesser (press 'x' key)\n"
+puts "2. Coder (any key)\n"
 
-tries = 1
+user_decision = gets.chomp.upcase
+# 'X' humans whats to guess the code otherwise provides a secret code
+play_mode = user_decision == 'X'
+
+puts "Star with a random entry (#{play_mode ? 'guess code' : 'secret code'})..."
+input_code = gets.chomp.split('')
+
+# loops for as long as the entry a length valid
+until input_code.length == 5
+  puts "Entry NOT 5 characters '#{input_code}', please try again..."
+  input_code = gets.chomp.split('')
+end
+
+human = play_mode ? Guesser.new(input_code) : Coder.new(input_code)
+machine = play_mode ? Coder.new : Guesser.new
+
+try = 1
+
 loop do
-  puts "\nTry #{tries}"
-  clues = coder.get_clues(guesser.guess_code)
-  puts "guess_code: #{guesser.guess_code}"
-  puts "Clues:#{clues}"
+  complete = false
 
-  guesser.try_guess(clues)
-  guesser.try_found(clues)
+  if play_mode
+    # human is trying to guess the secret code
+    clues = machine.get_clues(input_code)
+    puts clues.to_s
+    puts input_code.to_s
 
-  puts 'Continue? (Y/N)..'
-  finished = gets.chomp
-  complete = coder.complete(guesser.guess_code)
+    complete = machine.complete(input_code)
+    puts "Congratulation! you guessed at #{try} attempt" if complete
 
-  puts "Congratulation! you guessed at #{tries} attemps" if complete
-  tries += 1
-  break if finished.upcase == 'N' || complete
+  else
+    # human is providing clues of the computer guess
+    machine.try_guess(input_code)
+    machine.try_found(input_code)
+    guess_code = machine.guess_code
+    puts "machine guess -> #{guess_code}"
+
+    clues = human.get_clues(guess_code)
+    puts "suggested clues -> #{clues}"
+
+    complete = human.complete(guess_code)
+    puts "Machine has guessed your code at #{try} attempt" if complete
+  end
+
+  puts "Try#{try}.- Enter #{play_mode ? 'Guess code:' : 'Clues:'}"
+  input_code = gets.chomp.split('')
+
+  try += 1
+  break if complete || try > 12
 end
