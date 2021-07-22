@@ -1,4 +1,3 @@
-require('colorize')
 # Class Coder
 
 # frozen_string_literal: true
